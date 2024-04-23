@@ -1,0 +1,26 @@
+{
+  "name": "soqlx",
+  "version": "0.0.0",
+  "description": "SOQLx parser library and CLI",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stephenlf/soqlx.git"
+  },
+  "keywords": [
+    "soql",
+    "soqlx",
+    "cli",
+    "salesforce",
+    "sfdx"
+  ],
+  "author": "Stephen Funk",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/stephenlf/soqlx/issues"
+  },
+  "homepage": "https://github.com/stephenlf/soqlx#readme"
+}

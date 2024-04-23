@@ -1,0 +1,25 @@
+{
+  "name": "soqlx-language-support",
+  "displayName": "soqlx-language-support",
+  "description": "Language Support for SOQLx",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "soqlx",
+      "aliases": ["SOQLx", "soqlx"],
+      "extensions": [".soqlx"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "soqlx",
+      "scopeName": "source.soqlx",
+      "path": "./syntaxes/soqlx.tmLanguage.json"
+    }]
+  }
+}
