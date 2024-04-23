@@ -3,8 +3,14 @@
   "version": "0.0.0",
   "description": "SOQLx parser library and CLI",
   "main": "src/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "dev": "tsc && node build/index.js"
+  },
+  "bin": {
+    "soqlx": "./build/index.js"
   },
   "repository": {
     "type": "git",
@@ -22,5 +28,12 @@
   "bugs": {
     "url": "https://github.com/stephenlf/soqlx/issues"
   },
-  "homepage": "https://github.com/stephenlf/soqlx#readme"
+  "homepage": "https://github.com/stephenlf/soqlx#readme",
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  }
 }
