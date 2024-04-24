@@ -94,8 +94,14 @@ export function parseParamFileArg(argument: string | undefined): string {
         throw new SoqlxParserError('@paramFile missing argument <PATH>');
     }
     const filePath = shellParse(argument)[0].toString();
-    if (! fs.statSync(filePath).isFile() ) {
-        throw new SoqlxParserError(`@paramFile PATH argument does not point to a valid file: ${filePath}`);
+    try {
+        var pathStat = fs.statSync(filePath);
+    } catch (e) {
+        const error = e as Error;
+        throw new SoqlxParserError(`${error.name}: ${error.message}`);
+    }
+    if (! pathStat.isFile() ) {
+        throw new SoqlxParserError(`@paramFile PATH argument does not point to a file: ${filePath}`);
     }
     return filePath;
 } 

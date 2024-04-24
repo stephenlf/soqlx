@@ -1,4 +1,4 @@
-import parse, { parseParamFileArg } from './parser';
+import parse, { parseParamFileArg, SoqlxParserError } from './parser';
 import { describe, expect, test } from '@jest/globals'
 
 describe('parseParamFileArg module', () => {
@@ -9,6 +9,8 @@ describe('parseParamFileArg module', () => {
     });
 
     test('bad output: file doesn\'t exist', () => {
-
+        const arg = "./invalid.invalid";
+        expect(() => {parseParamFileArg(arg)})
+            .toThrow(SoqlxParserError);
     });
 });
