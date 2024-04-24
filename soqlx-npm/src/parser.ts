@@ -9,7 +9,7 @@ export interface SoqlxOptions {
     pretty?: boolean;
 }
 
-class SoqlxOptionsFactory {
+export class SoqlxOptionsFactory {
     paramsFile?: string;
     params: Params;
     pretty?: boolean;
@@ -41,7 +41,7 @@ interface ParsedQuery {
     queryString: string,
 }
 
-export function parse(soqlxQuery: SoqlxQuery): ParsedQuery {
+export default function parse(soqlxQuery: SoqlxQuery): ParsedQuery {
     // Iterate over lines, from start to finish.
     const lines = soqlxQuery.toString().split('\n');
     if (lines.length == 0) {
@@ -53,7 +53,7 @@ export function parse(soqlxQuery: SoqlxQuery): ParsedQuery {
     throw new Error('Method not yet implemented.');
 }
 
-function consumeInlineCommands(lines: string[]): SoqlxOptions {
+export function consumeInlineCommands(lines: string[]): SoqlxOptions {
     const options = new SoqlxOptionsFactory();
 
     let line = lines.pop()!.trim();
@@ -62,9 +62,11 @@ function consumeInlineCommands(lines: string[]): SoqlxOptions {
         const tokens = line.split(/\s/, 2);
 
     }
+
+    return {};
 }
 
-function parseInlineParam(line: string | undefined) {
+export function parseInlineParam(line: string | undefined) {
     if (! line || ! line.startsWith('@') ) {
         return;
     }
@@ -87,7 +89,7 @@ function parseInlineParam(line: string | undefined) {
     return;
 }
 
-function parseParamFileArg(argument: string | undefined): string {
+export function parseParamFileArg(argument: string | undefined): string {
     if (! argument) {
         throw new SoqlxParserError('@paramFile missing argument <PATH>');
     }
