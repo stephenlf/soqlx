@@ -21,7 +21,9 @@ describe('parseParamFileArg module', () => {
     });
 
     test('bad data: empty string', () => {
-
+        const arg = '';
+        expect(() => {parseParamFileArg(arg)})
+            .toThrow(SoqlxParserError);
     });
 
     test('bad output: file doesn\'t exist', () => {
