@@ -1,4 +1,4 @@
-import parse, { parseParamFileArg, SoqlxParserError } from './parser';
+import parse, { parseParamFileArg, SoqlxParserError } from 'src/parser';
 import { describe, expect, test } from '@jest/globals'
 
 describe('parseParamFileArg module', () => {

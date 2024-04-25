@@ -53,6 +53,11 @@ export default function parse(soqlxQuery: SoqlxQuery): ParsedQuery {
     throw new Error('Method not yet implemented.');
 }
 
+/**
+ * Process triple-slash (///) command comments, consuming them
+ * @param lines 
+ * @returns 
+ */
 export function consumeInlineCommands(lines: string[]): SoqlxOptions {
     const options = new SoqlxOptionsFactory();
 
@@ -66,6 +71,12 @@ export function consumeInlineCommands(lines: string[]): SoqlxOptions {
     return {};
 }
 
+/**
+ * Pull command and arguments from provided line.
+ * 
+ * @param line  Potential command/argument string. Returns undefined when 
+ *              `line` doesn't start with '@'.
+ */
 export function parseInlineParam(line: string | undefined) {
     if (! line || ! line.startsWith('@') ) {
         return;
@@ -89,6 +100,13 @@ export function parseInlineParam(line: string | undefined) {
     return;
 }
 
+/** 
+ * Pull the first shell-style argument (whitespace-delimited string or quoted 
+ * string) from `argument` and validate as a file path.
+ * 
+ * @throws  If the argument is falsey or the supplied file path doesn't point
+ *          to a file.
+ */
 export function parseParamFileArg(argument: string | undefined): string {
     if (! argument) {
         throw new SoqlxParserError('@paramFile missing argument <PATH>');
