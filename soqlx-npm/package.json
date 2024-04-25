@@ -2,12 +2,12 @@
   "name": "soqlx",
   "version": "0.0.0",
   "description": "SOQLx parser library and CLI",
-  "main": "src/index.js",
+  "main": "build/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "jest",
     "build": "tsc",
-    "dev": "tsc && node build/index.js"
+    "dev": "tsc && NODE_ENV=test node build/index.js"
   },
   "bin": {
     "soqlx": "./build/index.js"

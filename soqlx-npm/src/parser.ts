@@ -9,7 +9,7 @@ export interface SoqlxOptions {
     pretty?: boolean;
 }
 
-export class SoqlxOptionsFactory {
+class SoqlxOptionsFactory {
     paramsFile?: string;
     params: Params;
     pretty?: boolean;
@@ -58,7 +58,7 @@ export default function parse(soqlxQuery: SoqlxQuery): ParsedQuery {
  * @param lines 
  * @returns 
  */
-export function consumeInlineCommands(lines: string[]): SoqlxOptions {
+function consumeInlineCommands(lines: string[]): SoqlxOptions {
     const options = new SoqlxOptionsFactory();
 
     let line = lines.pop()!.trim();
@@ -77,7 +77,7 @@ export function consumeInlineCommands(lines: string[]): SoqlxOptions {
  * @param line  Potential command/argument string. Returns undefined when 
  *              `line` doesn't start with '@'.
  */
-export function parseInlineParam(line: string | undefined) {
+function parseInlineParam(line: string | undefined) {
     if (! line || ! line.startsWith('@') ) {
         return;
     }
@@ -107,7 +107,7 @@ export function parseInlineParam(line: string | undefined) {
  * @throws  If the argument is falsey or the supplied file path doesn't point
  *          to a file.
  */
-export function parseParamFileArg(argument: string | undefined): string {
+function parseParamFileArg(argument: string | undefined): string {
     if (! argument) {
         throw new SoqlxParserError('@paramFile missing argument <PATH>');
     }
@@ -122,4 +122,15 @@ export function parseParamFileArg(argument: string | undefined): string {
         throw new SoqlxParserError(`@paramFile PATH argument does not point to a file: ${filePath}`);
     }
     return filePath;
-} 
+}
+
+
+// Exports for unit tests
+if (process.env.NODE_ENV === 'test') {
+    module.exports = {
+        consumeInlineCommands: consumeInlineCommands,
+        parseInlineParam: parseInlineParam,
+        parseParamFileArg: parseParamFileArg,
+        ...module.exports
+    };
+};
