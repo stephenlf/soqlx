@@ -65,7 +65,7 @@ function consumeInlineCommands(lines: string[]): SoqlxOptions {
 
     while (line.substring(3) === '///') {
         const tokens = line.split(/\s/, 2);
-
+        const options = parseInlineParam(tokens[1]);
     }
 
     return {};
@@ -77,11 +77,11 @@ function consumeInlineCommands(lines: string[]): SoqlxOptions {
  * @param line  Potential command/argument string. Returns undefined when 
  *              `line` doesn't start with '@'.
  */
-function parseInlineParam(line: string | undefined) {
-    if (! line || ! line.startsWith('@') ) {
+function parseInlineParam(tokens: string | undefined) {
+    if (! tokens || ! tokens.startsWith('@') ) {
         return;
     }
-    const [command, argument] = line.split(/\s/, 2);
+    const [command, argument] = tokens.split(/\s/, 2);
     switch (command) {
         case '@param':
             
