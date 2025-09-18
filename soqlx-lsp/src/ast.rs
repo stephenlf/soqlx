@@ -28,6 +28,7 @@ impl FieldPath {
     }
 }
 
+/// Represents a complete SOQL [SELECT](https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select.htm) string
 #[derive(Debug, Clone, PartialEq)]
 pub struct Query {
     pub select: SelectClause,
