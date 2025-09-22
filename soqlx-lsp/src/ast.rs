@@ -1,11 +1,123 @@
-use std::fmt;
+//! # The [SOQL SELECT](https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select.htm) Abstract Syntax Tree
+//! 
+//! This module is architected to leverage the typestate pattern to enforce
+//! certain query constructs. Specifically, all queries are bucketed into one
+//! of two states: `Grouped` or `Ungrouped`. `Grouped` and `Ungrouped` queries
+//! have different functions available to them. Additionally, only `Grouped`
+//! queries support field aliasing.
+//! 
 
-/// Represents a complete SOQL [SELECT](https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select.htm) string
+use std::fmt;
+use nonempty::NonEmpty;
+
+// ---- typestate markers ----
+pub struct Grouped;
+pub struct Ungrouped;
+
+pub trait Grouping {}
+impl Grouping for Grouped {}
+impl Grouping for Ungrouped {}
+
+// ---- type-level switch: alias permitted ----
+pub struct NoAlias; // ZST; represents "aliases not allowed"
+pub trait HasAlias {
+    type Alias;
+}
+impl HasAlias for Grouped    { type Alias = Option<String>; }
+impl HasAlias for Ungrouped  { type Alias = NoAlias; }
+
+// Helper if you want a unified view (always return Option<&str>)
+impl NoAlias {
+    pub fn as_option(&self) -> Option<&str> { None }
+}
+impl Grouped {
+    // only available when G = Grouped
+    pub fn alias_opt(a: &<Grouped as HasAlias>::Alias) -> Option<&str> {
+        a.as_deref()
+    }
+}
+
+// ---- type-level switch: functions ----
+#[derive(Clone, Debug)]
+pub enum AggFunc { Count, Sum, Min, Max /* ... SOQL aggregate funcs ... */ }
+
+#[derive(Clone, Debug)]
+pub enum ScalarFunc { Upper, Lower, Length,  /* ... SOQL scalar funcs ... */ }
+
+pub trait HasFunctionSet {
+    type Func;
+}
+impl HasFunctionSet for Grouped   { type Func = AggFunc; }
+impl HasFunctionSet for Ungrouped { type Func = ScalarFunc; }
+
+
+pub trait HasGroupBy {
+    type GroupBy; // Grouped => NonEmptyVec<String>, Ungrouped => ()
+}
+impl HasGroupBy for Grouped   { type GroupBy = NonEmpty<String>; }
+impl HasGroupBy for Ungrouped { type GroupBy = (); }
+
+// ---- FieldIdentifier, parameterized by grouping ----
+#[derive(Clone, Debug)]
+pub enum FieldIdentifier<G>
+where
+    G: Grouping + HasAlias + HasFunctionSet,
+{
+    Field {
+        label: String,
+        alias: <G as HasAlias>::Alias,   // alias allowed only when Grouped
+    },
+    Function {
+        function: <G as HasFunctionSet>::Func, // function set changes by grouping
+        argument: String,
+        alias: <G as HasAlias>::Alias,   // alias allowed only when Grouped
+    },
+}
+
+// ---- Select, parameterized by grouping ----
+#[derive(Clone, Debug)]
+pub struct Select<G>
+where
+    G: Grouping + HasAlias + HasFunctionSet + HasGroupBy,
+{
+    pub select: Vec<FieldIdentifier<G>>,
+    pub from: String, // ObjectIdentifier
+    pub where_clause: Option<Expression>,
+    pub group_by: <G as HasGroupBy>::GroupBy,
+}
+
+// Convenient aliases:
+pub type SimpleSelect   = Select<Ungrouped>;
+pub type AggregateSelect = Select<Grouped>;
+
+/**
+
+/// # 
+/// 
+/// SOQL query syntax consists of a required SELECT statement followed by one or more optional clauses, such as TYPEOF, WHERE, WITH, GROUP BY, and ORDER BY.
+/// 
+/// The SOQL SELECT statement uses the following syntax:
+/// 
+/// ```text
+/// SELECT fieldList [subquery][...]
+/// [TYPEOF typeOfField whenExpression[...] elseExpression END][...]
+/// FROM objectType[,...] 
+///     [USING SCOPE filterScope]
+/// [WHERE conditionExpression]
+/// [WITH [DATA CATEGORY] filteringExpression]
+/// [GROUP BY {fieldGroupByList|ROLLUP (fieldSubtotalGroupByList)|CUBE (fieldSubtotalGroupByList)} 
+///     [HAVING havingConditionExpression] ] 
+/// [ORDER BY fieldOrderByList {ASC|DESC} [NULLS {FIRST|LAST}] ]
+/// [LIMIT numberOfRowsToReturn]
+/// [OFFSET numberOfRowsToSkip]
+/// [{FOR VIEW  | FOR REFERENCE} ]
+/// [UPDATE {TRACKING|VIEWSTAT} ]
+/// [FOR UPDATE]
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Query {
-    pub select: SelectClause,
+    pub select: Vec<SelectItem>,
     pub from: FromClause,
-    pub where_clause: Option<Expression>,
     pub with: Option<WithClause>,
     pub group_by: Option<GroupByClause>,
     pub having: Option<Expression>,
@@ -13,8 +125,65 @@ pub struct Query {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
     pub for_clause: Option<ForClause>,
+    pub update: Option<UpdateClause>,
 }
 
+pub enum FieldList {
+    FieldList(pub Vec<SelectItem>),
+    AggregateFieldList(pub Vec<String>),
+}
+
+
+
+/// Specifies a list of one or more fields, separated by commas, that you want to retrieve from the specified object. The bold elements in the following examples are fieldlist values:
+///   - SELECT **Id, Name, BillingCity** FROM Account
+///   - SELECT **count()** FROM Contact
+///   - SELECT **Contact.Firstname, Contact.Account.Name** FROM Contact
+///   - SELECT **FIELDS(STANDARD)** FROM Contact
+/// 
+/// Use valid field names and include read-level permissions for each specified field. The fieldList defines the ordering of fields in the query results.
+/// If the query traverses a relationship, fieldList can include a subquery. For example:
+/// 
+/// ```soql
+/// SELECT Account.Name, (SELECT Contact.LastName FROM Account.Contacts)
+/// FROM Account
+/// ```
+/// 
+/// The fieldlist can also be an aggregate function, such as `COUNT()` and `COUNT(fieldName)`, or be wrapped in the [toLabel()](https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select_tolabel.htm) function to translate returned results. See [`SELECT`](https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select_fields.htm#topic-title) for more information.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SelectItem {
+    Field(FieldPath),
+    AggregateField(Aggregate),
+    FunctionField(FunctionSelection),
+    Typeof(TypeofSelect),
+    Subquery(Subquery),
+}
+
+pub enum AggregateItem {
+
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FieldPath(pub Vec<Identifier>);
+
+pub struct Aggregate {
+    field: AggregateFunction,
+    alias: Optional<Identifier>
+}
+
+pub enum AggregateFunction {
+    Avg(FieldPath),
+    Count(Option<FieldPath>),
+    CountDistinct(FieldPath),
+    Min(FieldPath),
+    Max(FieldPath),
+    Sum(FieldPath),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Identifier(pub String);
+
+/**
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelectClause {
     pub modifier: Option<SelectModifier>,
@@ -27,19 +196,6 @@ pub enum SelectModifier {
     Distinct,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum SelectItem {
-    Field(FieldSelection),
-    Function(FunctionSelection),
-    Typeof(TypeofSelect),
-    Subquery(Subquery),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct FieldSelection {
-    pub field: FieldPath,
-    pub alias: Option<Identifier>,
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSelection {
@@ -60,12 +216,10 @@ pub struct Subquery {
     pub alias: Option<Identifier>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FieldPath(pub Vec<Identifier>);
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Identifier(pub String);
+
+
 
 // ------------------------------------------------
 
@@ -326,3 +480,4 @@ pub enum NumberLiteral {
     Integer(i64),
     Decimal(String),
 }
+*/
