@@ -7,10 +7,22 @@
 //! queries support field aliasing.
 //! 
 
-use std::fmt;
+use std::{convert::Infallible, fmt};
 use nonempty::NonEmpty;
 
-// ---- typestate markers ----
+// ---- Select, parameterized by grouping ----
+#[derive(Clone, Debug)]
+pub struct Select<G>
+where
+    G: Grouping + HasAlias + HasFunctionSet + HasGroupBy,
+{
+    pub select: Vec<FieldIdentifier<G>>,
+    pub from: String, // ObjectIdentifier
+    pub using_scope: Optional<UserScope>,
+    pub group_by: <G as HasGroupBy>::GroupBy,
+}
+
+// ---- typestate markers Grouped and Ungrouped ----
 pub struct Grouped;
 pub struct Ungrouped;
 
@@ -19,27 +31,20 @@ impl Grouping for Grouped {}
 impl Grouping for Ungrouped {}
 
 // ---- type-level switch: alias permitted ----
-pub struct NoAlias; // ZST; represents "aliases not allowed"
 pub trait HasAlias {
     type Alias;
 }
 impl HasAlias for Grouped    { type Alias = Option<String>; }
-impl HasAlias for Ungrouped  { type Alias = NoAlias; }
-
-// Helper if you want a unified view (always return Option<&str>)
-impl NoAlias {
-    pub fn as_option(&self) -> Option<&str> { None }
-}
-impl Grouped {
-    // only available when G = Grouped
-    pub fn alias_opt(a: &<Grouped as HasAlias>::Alias) -> Option<&str> {
-        a.as_deref()
-    }
-}
+impl HasAlias for Ungrouped  { type Alias = Infallible; }
 
 // ---- type-level switch: functions ----
 #[derive(Clone, Debug)]
-pub enum AggFunc { Count, Sum, Min, Max /* ... SOQL aggregate funcs ... */ }
+pub enum AggFunc {
+    Avg(FieldLabel),
+    Sum,
+    Min,
+    Max,
+}
 
 #[derive(Clone, Debug)]
 pub enum ScalarFunc { Upper, Lower, Length,  /* ... SOQL scalar funcs ... */ }
@@ -50,18 +55,40 @@ pub trait HasFunctionSet {
 impl HasFunctionSet for Grouped   { type Func = AggFunc; }
 impl HasFunctionSet for Ungrouped { type Func = ScalarFunc; }
 
-
+// --- type-level switch: group by ---
 pub trait HasGroupBy {
     type GroupBy; // Grouped => NonEmptyVec<String>, Ungrouped => ()
 }
 impl HasGroupBy for Grouped   { type GroupBy = NonEmpty<String>; }
 impl HasGroupBy for Ungrouped { type GroupBy = (); }
 
+// --- type-level switch: subqueries ---
+pub trait HasSubqueries {
+    /// Payload used by the `Subquery` select item.
+    /// - Ungrouped => Box<Select<Ungrouped>>
+    /// - Grouped   => Infallible (uninhabited; impossible to construct)
+    type Subquery;
+}
+impl HasSubqueries for Ungrouped { type Subquery = Box<Select<Ungrouped>>; }
+impl HasSubqueries for Grouped   { type Subquery = Infallible; }
+
+// --- type-level switch: typeof ---
+pub trait HasTypeof {
+    /// Payload used by the `TYPEOF` select item.
+    /// - Ungrouped => TypeofStatement
+    /// - Grouped => Infallible (uninhabited; impossible to construct)
+    type Typeof;
+}
+impl HasTypeof for Ungrouped { type Typeof = TypeofExpression; }
+impl HasTypeof for Grouped { type Typeof = Infallible; }
+
+pub struct TypeofExpression {}
+
 // ---- FieldIdentifier, parameterized by grouping ----
 #[derive(Clone, Debug)]
 pub enum FieldIdentifier<G>
 where
-    G: Grouping + HasAlias + HasFunctionSet,
+    G: Grouping + HasAlias + HasFunctionSet + HasTypeof,
 {
     Field {
         label: String,
@@ -72,23 +99,30 @@ where
         argument: String,
         alias: <G as HasAlias>::Alias,   // alias allowed only when Grouped
     },
+    Subquery(<G as HasSubqueries>::Subquery),
+    Typeof(<G as HasTypeof>::Typeof),
 }
 
-// ---- Select, parameterized by grouping ----
-#[derive(Clone, Debug)]
-pub struct Select<G>
-where
-    G: Grouping + HasAlias + HasFunctionSet + HasGroupBy,
-{
-    pub select: Vec<FieldIdentifier<G>>,
-    pub from: String, // ObjectIdentifier
-    pub where_clause: Option<Expression>,
-    pub group_by: <G as HasGroupBy>::GroupBy,
-}
-
-// Convenient aliases:
+// Convenient aliases: SimpleSelect and AggregateSelect
 pub type SimpleSelect   = Select<Ungrouped>;
 pub type AggregateSelect = Select<Grouped>;
+
+// --- from clause
+pub struct FromClause {
+    from: (ObjectName, Option<Alias>),
+    aliases: Vec<(LookupName, Option<Alias>)>
+}
+
+pub struct ObjectName(pub String);
+pub struct LookupName(pub String);
+pub struct Alias(pub String);
+
+// --- user scope
+pub enum UserScope {
+    Mine,
+    Team,
+    Custom(pub String),
+}
 
 /**
 
