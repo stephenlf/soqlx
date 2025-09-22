@@ -1,33 +1,5 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Identifier(pub String);
-
-impl Identifier {
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl fmt::Display for Identifier {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FieldPath(pub Vec<Identifier>);
-
-impl FieldPath {
-    pub fn new(parts: Vec<Identifier>) -> Self {
-        Self(parts)
-    }
-}
-
 /// Represents a complete SOQL [SELECT](https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select.htm) string
 #[derive(Debug, Clone, PartialEq)]
 pub struct Query {
@@ -83,9 +55,42 @@ pub struct TypeofSelect {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TypeofBranch {
-    pub type_names: Vec<Identifier>,
-    pub fields: Vec<FieldPath>,
+pub struct Subquery {
+    pub query: Box<Query>,
+    pub alias: Option<Identifier>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FieldPath(pub Vec<Identifier>);
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Identifier(pub String);
+
+// ------------------------------------------------
+
+impl Identifier {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+
+
+impl FieldPath {
+    pub fn new(parts: Vec<Identifier>) -> Self {
+        Self(parts)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -96,10 +101,14 @@ pub struct FunctionCall {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Subquery {
-    pub query: Box<Query>,
-    pub alias: Option<Identifier>,
+pub struct TypeofBranch {
+    pub type_names: Vec<Identifier>,
+    pub fields: Vec<FieldPath>,
 }
+
+
+
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FromClause {
